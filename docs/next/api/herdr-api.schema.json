@@ -1759,6 +1759,15 @@
           ],
           "type": "object"
         },
+        "DirectKeysRouting": {
+          "description": "Who receives prefix-free (direct) keybindings: \"herdr\" keeps them, \"auto\"\nforwards them while the pane application is on the alternate screen, and\n\"pane\" always forwards them.",
+          "enum": [
+            "herdr",
+            "auto",
+            "pane"
+          ],
+          "type": "string"
+        },
         "EmptyParams": {
           "type": "object"
         },
@@ -2559,6 +2568,21 @@
               ]
             }
           },
+          "type": "object"
+        },
+        "PaneDirectKeysSetParams": {
+          "properties": {
+            "direct_keys": {
+              "$ref": "#/schemas/request/$defs/DirectKeysRouting"
+            },
+            "pane_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pane_id",
+            "direct_keys"
+          ],
           "type": "object"
         },
         "PaneDirection": {
@@ -5809,6 +5833,22 @@
             },
             "params": {
               "$ref": "#/schemas/request/$defs/PaneInputSetParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "pane.direct_keys.set",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/PaneDirectKeysSetParams"
             }
           },
           "required": [

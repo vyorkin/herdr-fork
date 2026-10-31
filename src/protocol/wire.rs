@@ -1064,6 +1064,10 @@ pub struct ClientShellPane {
     pub foreground_cwd: Option<String>,
     pub focused: bool,
     pub right_click_passthrough: bool,
+    /// Per-pane override for who receives direct keybindings; `None` follows
+    /// the client's `keys.direct_keys` setting.
+    #[serde(default)]
+    pub direct_keys: Option<crate::config::DirectKeysRouting>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2850,6 +2854,7 @@ mod tests {
                 foreground_cwd: Some("/repo".into()),
                 focused: true,
                 right_click_passthrough: false,
+                direct_keys: None,
             }],
             agents: Vec::new(),
             commands: vec![ClientShellCommand {

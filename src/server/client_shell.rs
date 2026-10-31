@@ -136,6 +136,15 @@ pub(super) fn snapshot_with_completions(
                         .pane_state(pane_id)
                 })
                 .is_some_and(|pane| pane.right_click_passthrough);
+            let direct_keys = app
+                .parse_pane_id(&pane_id)
+                .and_then(|(workspace_index, pane_id)| {
+                    app.state
+                        .workspaces
+                        .get(workspace_index)?
+                        .pane_state(pane_id)
+                })
+                .and_then(|pane| pane.direct_keys);
             protocol::ClientShellPane {
                 pane_id,
                 workspace_id: pane.workspace_id,
@@ -145,6 +154,7 @@ pub(super) fn snapshot_with_completions(
                 foreground_cwd: pane.foreground_cwd,
                 focused,
                 right_click_passthrough,
+                direct_keys,
             }
         })
         .collect();

@@ -146,6 +146,7 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Who receives direct (prefix-free) bindings: "herdr" (default), "auto", or "pane".
 # "auto" hands them to the pane while its app is on the alternate screen, which is
 # how full-screen editors and pagers get their own ctrl+letter chords back.
+# Per pane: `herdr pane direct-keys --pane ID --direct-keys auto|herdr|pane`.
 # direct_keys = "herdr"
 
 # Prefix-mode actions

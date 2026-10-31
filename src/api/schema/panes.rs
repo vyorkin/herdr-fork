@@ -47,6 +47,14 @@ crate::cli::projection::cli_params! {
     }
 }
 
+crate::cli::projection::cli_params! {
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+    pub struct PaneDirectKeysSetParams => PaneDirectKeysSetProjection {
+        pub pane_id: String => binding::input_target(),
+        pub direct_keys: crate::config::DirectKeysRouting => Field::new(crate::config::DirectKeysRouting::default()).input(binding::direct_keys().required()),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PaneLinkActivateParams {
     pub pane_id: String,

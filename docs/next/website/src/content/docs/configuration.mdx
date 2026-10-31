@@ -186,6 +186,15 @@ direct_keys = "auto"
 
 `auto` is the useful middle ground: full-screen editors and pagers such as Vim, Neovim, `less`, and `htop` switch to the alternate screen, so they get their own chords back, while shells keep sending direct bindings to Herdr. Panes that never leave the normal screen, such as a plain shell, keep Herdr's behavior. Pressing the prefix always reaches Herdr regardless of this setting.
 
+One pane can override the config value:
+
+```bash
+herdr pane direct-keys --current --direct-keys pane
+herdr pane direct-keys --current --direct-keys herdr
+```
+
+The override lives as long as the pane does. A full-screen application can set it from inside the pane, where `HERDR_PANE_ID` is available.
+
 ## Indexed jumps
 
 Indexed keybindings use `1..9` in normal keybinding fields:

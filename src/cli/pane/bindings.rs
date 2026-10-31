@@ -9,6 +9,7 @@ use crate::api::schema::{
 };
 pub(crate) use crate::cli::projection::parse_choice;
 use crate::cli::projection::{choices, choices_where, Choice};
+use crate::config::DirectKeysRouting;
 
 pub(crate) const DIRECTIONS: &[Choice<PaneDirection>] = &[
     Choice::new("left", PaneDirection::Left),
@@ -23,6 +24,11 @@ pub(crate) const SPLITS: &[Choice<SplitDirection>] = &[
 const RIGHT_CLICK: &[Choice<PaneRightClickTarget>] = &[
     Choice::new("herdr", PaneRightClickTarget::Herdr),
     Choice::new("pane", PaneRightClickTarget::Pane),
+];
+const DIRECT_KEYS: &[Choice<DirectKeysRouting>] = &[
+    Choice::new("herdr", DirectKeysRouting::Herdr),
+    Choice::new("auto", DirectKeysRouting::Auto),
+    Choice::new("pane", DirectKeysRouting::Pane),
 ];
 const STATES: &[Choice<PaneAgentState>] = &[
     Choice::new("idle", PaneAgentState::Idle),
@@ -148,6 +154,16 @@ pub(crate) fn right_click() -> Input<PaneRightClickTarget> {
         Ok(())
     })
     .configure(|arg| choices(arg, RIGHT_CLICK))
+}
+
+pub(crate) fn direct_keys() -> Input<DirectKeysRouting> {
+    Input::value("direct-keys", "TARGET", |slot, value| {
+        *slot = parse_choice(DIRECT_KEYS, "direct-keys target", value)?;
+        Ok(())
+    })
+    .required()
+    .help("Who receives prefix-free keybindings: herdr, auto, or pane")
+    .configure(|arg| choices(arg, DIRECT_KEYS))
 }
 
 pub(crate) fn environment() -> Input<HashMap<String, String>> {
@@ -402,7 +418,7 @@ impl Leaf {
     pub(super) fn command(&self) -> Command {
         let command = projection::command(self.name, (self.arguments)()).about(self.about);
         match self.name {
-            "input" => command.group(clap::ArgGroup::new("selector").args(["pane_id", "pane", "current"]).required(true)),
+            "input" | "direct-keys" => command.group(clap::ArgGroup::new("selector").args(["pane_id", "pane", "current"]).required(true)),
             "move" => command.group(clap::ArgGroup::new("destination").args(["tab", "new-tab", "new-workspace"]).required(true)),
             "send-text" => command.after_help("next: herdr pane run <PANE_ID> <COMMAND> sends text and Enter in one call"),
             "send-keys" => command.after_help("Use esc as the canonical Escape key name; escape is also accepted."),
@@ -612,6 +628,22 @@ pub(super) const LEAVES: &[Leaf] = &[
         },
     },
     Leaf {
+        name: "direct-keys",
+        about: "Choose who receives direct keybindings",
+        id: "cli:pane:direct-keys:set",
+        output: Output::Json,
+        arguments: PaneDirectKeysSetProjection::arguments,
+        method: |matches| {
+            let mut params = PaneDirectKeysSetProjection::from_matches(matches)?;
+            if matches.get_flag("current") {
+                params.pane_id = crate::cli::target::caller_pane_id()
+                    .map(|value| crate::cli::normalize_pane_id(&value))
+                    .ok_or_else(|| ParseError::Usage("--current requires HERDR_PANE_ID".into()))?;
+            }
+            Ok(Method::PaneDirectKeysSet(params))
+        },
+    },
+    Leaf {
         name: "split",
         about: "Split a pane",
         id: "cli:pane:split",
@@ -746,6 +778,7 @@ mod choice_tests {
         assert_choices_cover_api_enum(super::DIRECTIONS);
         assert_choices_cover_api_enum(super::SPLITS);
         assert_choices_cover_api_enum(super::RIGHT_CLICK);
+        assert_choices_cover_api_enum(super::DIRECT_KEYS);
         assert_choices_cover_api_enum(super::STATES);
     }
 }

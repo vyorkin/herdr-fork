@@ -139,4 +139,4 @@ A few `ctrl+alt` chords are taken elsewhere. Avoid these:
 
 If a direct chord does nothing, your terminal or desktop environment consumed it before Herdr could see it. Rebind either side: free the chord in the terminal's settings, or pick another chord in Herdr.
 
-A direct chord belongs to Herdr, so the program inside the pane never sees it. That collides with full-screen editors that use `ctrl+letter` themselves. Set `keys.direct_keys = "auto"` to hand direct chords to a pane while its application is on the alternate screen. The prefix always reaches Herdr either way.
+A direct chord belongs to Herdr, so the program inside the pane never sees it. That collides with full-screen editors that use `ctrl+letter` themselves. Set `keys.direct_keys = "auto"` to hand direct chords to a pane while its application is on the alternate screen, or use `herdr pane direct-keys --current --direct-keys pane` to do it for one pane. The prefix always reaches Herdr either way.

@@ -114,6 +114,7 @@ operations::define_operations! {
     PaneGet(PaneTarget) => "pane.get", false, false;
     PaneFocus(PaneTarget) => "pane.focus", true, true;
     PaneInputSet(PaneInputSetParams) => "pane.input.set", true, true;
+    PaneDirectKeysSet(PaneDirectKeysSetParams) => "pane.direct_keys.set", true, true;
     PaneLinkActivate(PaneLinkActivateParams) => "pane.link.activate", false, true;
     PaneLinkResolve(PaneLinkActivateParams) => "pane.link.resolve", false, true;
     PaneRename(PaneRenameParams) => "pane.rename", true, true;

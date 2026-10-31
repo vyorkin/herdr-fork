@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- `keys.direct_keys` decides who receives prefix-free (direct) keybindings. The values are `herdr` (the default), `auto`, and `pane`. `auto` forwards direct chords to the pane while its application uses the alternate screen, so a full-screen editor keeps its own `ctrl+letter` chords without giving up direct bindings everywhere else.
+- `keys.direct_keys` and `herdr pane direct-keys` decide who receives prefix-free (direct) keybindings. The values are `herdr` (the default), `auto`, and `pane`. `auto` forwards direct chords to the pane while its application uses the alternate screen, so a full-screen editor keeps its own `ctrl+letter` chords without giving up direct bindings everywhere else. `herdr pane direct-keys` sets the same choice for one pane, and that override lasts as long as the pane does. The per-pane override persists for the life of the pane.
 
 ## [0.9.5] - 2026-10-14
 

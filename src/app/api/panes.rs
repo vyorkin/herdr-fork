@@ -3,11 +3,11 @@ use bytes::Bytes;
 use crate::api::schema::{
     EventData, EventEnvelope, EventKind, PaneClearAgentAuthorityParams, PaneCopyMotion,
     PaneCopyMotionParams, PaneCopySearchDirection, PaneCopySearchParams, PaneCurrentParams,
-    PaneDirection, PaneEdgesParams, PaneEdgesResult, PaneFocusDirectionParams,
-    PaneFocusDirectionReason, PaneFocusDirectionResult, PaneInfo, PaneInputSetParams,
-    PaneLayoutPane, PaneLayoutParams, PaneLayoutRect, PaneLayoutSnapshot, PaneLayoutSplit,
-    PaneListParams, PaneMoveDestination, PaneMoveParams, PaneMoveReason, PaneMoveResult,
-    PaneNeighborParams, PaneNeighborResult, PaneProcessInfo, PaneProcessInfoParams,
+    PaneDirectKeysSetParams, PaneDirection, PaneEdgesParams, PaneEdgesResult,
+    PaneFocusDirectionParams, PaneFocusDirectionReason, PaneFocusDirectionResult, PaneInfo,
+    PaneInputSetParams, PaneLayoutPane, PaneLayoutParams, PaneLayoutRect, PaneLayoutSnapshot,
+    PaneLayoutSplit, PaneListParams, PaneMoveDestination, PaneMoveParams, PaneMoveReason,
+    PaneMoveResult, PaneNeighborParams, PaneNeighborResult, PaneProcessInfo, PaneProcessInfoParams,
     PaneProcessInfoProcess, PaneReadParams, PaneReadResult, PaneReleaseAgentParams,
     PaneRenameParams, PaneReportAgentParams, PaneReportAgentSessionParams,
     PaneReportMetadataParams, PaneResizeParams, PaneResizeReason, PaneResizeResult,
@@ -1483,6 +1483,26 @@ impl App {
         encode_success(id, ResponseResult::Ok {})
     }
 
+    pub(super) fn handle_pane_direct_keys_set(
+        &mut self,
+        id: String,
+        params: PaneDirectKeysSetParams,
+    ) -> String {
+        let Some((ws_idx, pane_id)) = self.parse_pane_id(&params.pane_id) else {
+            return pane_not_found(id, &params.pane_id);
+        };
+        let Some(pane) = self
+            .state
+            .workspaces
+            .get_mut(ws_idx)
+            .and_then(|workspace| workspace.pane_state_mut(pane_id))
+        else {
+            return pane_not_found(id, &params.pane_id);
+        };
+        pane.direct_keys = Some(params.direct_keys);
+        encode_success(id, ResponseResult::Ok {})
+    }
+
     pub(super) fn handle_pane_rename(&mut self, id: String, params: PaneRenameParams) -> String {
         let Some((ws_idx, pane_id)) = self.parse_pane_id(&params.pane_id) else {
             return pane_not_found(id, &params.pane_id);
@@ -2371,6 +2391,45 @@ mod tests {
         assert!(
             !app.state.workspaces[0]
                 .pane_state(other)
+                .unwrap()
+                .right_click_passthrough
+        );
+    }
+
+    #[test]
+    fn pane_direct_keys_set_overrides_only_the_target_pane() {
+        let (mut app, public_pane_id) = app_with_test_workspace();
+        let target = app.state.workspaces[0].tabs[0].root_pane;
+        let other = app.state.workspaces[0].test_split(ratatui::layout::Direction::Horizontal);
+
+        let response = app.handle_pane_direct_keys_set(
+            "req".into(),
+            PaneDirectKeysSetParams {
+                pane_id: public_pane_id,
+                direct_keys: crate::config::DirectKeysRouting::Pane,
+            },
+        );
+
+        let response: SuccessResponse = serde_json::from_str(&response).unwrap();
+        assert!(matches!(response.result, ResponseResult::Ok {}));
+        assert_eq!(
+            app.state.workspaces[0]
+                .pane_state(target)
+                .unwrap()
+                .direct_keys,
+            Some(crate::config::DirectKeysRouting::Pane)
+        );
+        assert_eq!(
+            app.state.workspaces[0]
+                .pane_state(other)
+                .unwrap()
+                .direct_keys,
+            None
+        );
+        // Right-click routing is a separate method and stays untouched.
+        assert!(
+            !app.state.workspaces[0]
+                .pane_state(target)
                 .unwrap()
                 .right_click_passthrough
         );

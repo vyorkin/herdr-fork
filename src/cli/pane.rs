@@ -204,6 +204,7 @@ mod tests {
     use crate::api::schema::{
         OutputMatch, PaneRightClickTarget, PaneZoomMode, ReadFormat, ReadSource, SplitDirection,
     };
+    use crate::config::DirectKeysRouting;
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| (*value).to_owned()).collect()
@@ -325,6 +326,13 @@ mod tests {
                 "cli:pane:input:set",
                 "pane.input.set",
                 json!({"pane_id": "pane", "right_click": "herdr"}),
+            ),
+            (
+                "direct-keys",
+                vec!["pane", "--direct-keys", "auto"],
+                "cli:pane:direct-keys:set",
+                "pane.direct_keys.set",
+                json!({"pane_id": "pane", "direct_keys": "auto"}),
             ),
             (
                 "split",
@@ -627,6 +635,27 @@ mod tests {
             .unwrap();
         assert_eq!(params.pane_id, "issue-1:p1");
         assert_eq!(params.right_click, PaneRightClickTarget::Pane);
+        assert!(caller_target(&matches, None, None, false, true).is_err());
+    }
+
+    #[test]
+    fn parse_pane_direct_keys_args_uses_the_calling_pane() {
+        let leaf = bindings::LEAVES
+            .iter()
+            .find(|leaf| leaf.name == "direct-keys")
+            .unwrap();
+        let matches = leaf
+            .command()
+            .no_binary_name(true)
+            .try_get_matches_from(["--current", "--direct-keys", "auto"])
+            .unwrap();
+        let mut params =
+            crate::api::schema::panes::PaneDirectKeysSetProjection::from_matches(&matches).unwrap();
+        assert_eq!(params.direct_keys, DirectKeysRouting::Auto);
+        params.pane_id = caller_target(&matches, None, Some("issue-1:p1"), false, true)
+            .unwrap()
+            .unwrap();
+        assert_eq!(params.pane_id, "issue-1:p1");
         assert!(caller_target(&matches, None, None, false, true).is_err());
     }
 

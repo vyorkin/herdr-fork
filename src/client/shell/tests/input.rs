@@ -1105,6 +1105,32 @@ fn auto_direct_keys_stay_with_herdr_outside_the_alternate_screen() {
 }
 
 #[test]
+fn pane_override_beats_the_config_routing() {
+    let mut state = direct_keys_state(crate::config::DirectKeysRouting::Herdr);
+    let mut routed_snapshot = snapshot();
+    routed_snapshot.panes[0].direct_keys = Some(crate::config::DirectKeysRouting::Pane);
+    state.set_snapshot(Box::new(routed_snapshot));
+
+    let forwarded = state.handle_input_bytes(b"\x1b[116;5u");
+    assert!(!state.sidebar_collapsed);
+    assert!(routed_to_pane(&forwarded));
+
+    // And back the other way: a pane override keeps the chord inside herdr even
+    // while the pane sits on the alternate screen.
+    let mut state = direct_keys_state(crate::config::DirectKeysRouting::Auto);
+    let mut surface = surface();
+    surface.panes[0].alternate_screen_active = true;
+    state.set_pane_surface(surface);
+    let mut captured_snapshot = snapshot();
+    captured_snapshot.panes[0].direct_keys = Some(crate::config::DirectKeysRouting::Herdr);
+    state.set_snapshot(Box::new(captured_snapshot));
+
+    let captured = state.handle_input_bytes(b"\x1b[116;5u");
+    assert!(state.sidebar_collapsed);
+    assert!(!routed_to_pane(&captured));
+}
+
+#[test]
 fn prefix_still_works_while_a_pane_owns_direct_keys() {
     let mut state = direct_keys_state(crate::config::DirectKeysRouting::Pane);
 

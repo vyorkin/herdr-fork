@@ -1094,12 +1094,19 @@ impl ClientShellState {
     }
 
     /// Whether the focused pane owns the prefix-free (direct) keybindings instead
-    /// of Herdr, which `keys.direct_keys` decides.
+    /// of Herdr. `keys.direct_keys` sets the default for every pane, and
+    /// `herdr pane input --direct-keys` overrides it per pane.
     pub(super) fn direct_keys_go_to_pane(&self) -> bool {
         let Some(pane_id) = self.focused_pane_id() else {
             return false;
         };
-        match self.config.local_keys.direct_keys {
+        let routing = self
+            .snapshot
+            .as_deref()
+            .and_then(|snapshot| snapshot.panes.iter().find(|pane| pane.pane_id == pane_id))
+            .and_then(|pane| pane.direct_keys)
+            .unwrap_or(self.config.local_keys.direct_keys);
+        match routing {
             crate::config::DirectKeysRouting::Herdr => false,
             crate::config::DirectKeysRouting::Pane => true,
             crate::config::DirectKeysRouting::Auto => {

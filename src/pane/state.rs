@@ -10,6 +10,9 @@ pub struct PaneState {
     pub seen: bool,
     /// Whether unmodified right-click gestures should be forwarded to the pane application.
     pub right_click_passthrough: bool,
+    /// Per-pane override for who receives prefix-free (direct) keybindings.
+    /// `None` follows `keys.direct_keys` from the config.
+    pub direct_keys: Option<crate::config::DirectKeysRouting>,
 }
 
 impl PaneState {
@@ -18,6 +21,7 @@ impl PaneState {
             attached_terminal_id,
             seen: true,
             right_click_passthrough: false,
+            direct_keys: None,
         }
     }
 }
