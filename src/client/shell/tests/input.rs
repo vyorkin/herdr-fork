@@ -1051,3 +1051,65 @@ fn committed_text_still_reaches_a_report_all_pane_as_text() {
     let after = state.handle_input_bytes("\u{3042}".as_bytes());
     assert_eq!(pane_text_commits(&after).concat(), "\u{3042}");
 }
+
+fn direct_keys_state(direct_keys: crate::config::DirectKeysRouting) -> ClientShellState {
+    let mut config = Config::default();
+    config.keys.direct_keys = direct_keys;
+    // A direct chord stands in for focus_pane_*: Herdr toggles the sidebar when
+    // it owns the chord, and the pane receives Ctrl+T when it does not.
+    config.keys.toggle_sidebar = crate::config::BindingConfig::one("ctrl+t");
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    state
+}
+
+fn routed_to_pane(outcome: &ClientShellInput) -> bool {
+    outcome
+        .requests
+        .iter()
+        .any(|request| matches!(request, ClientMessage::ClientShellPaneInput { .. }))
+}
+
+#[test]
+fn direct_keys_stay_with_herdr_by_default() {
+    let mut state = direct_keys_state(crate::config::DirectKeysRouting::Herdr);
+
+    let outcome = state.handle_input_bytes(b"\x1b[116;5u");
+
+    assert!(state.sidebar_collapsed, "herdr must own the direct chord");
+    assert!(!routed_to_pane(&outcome));
+}
+
+#[test]
+fn auto_direct_keys_reach_a_pane_on_the_alternate_screen() {
+    let mut state = direct_keys_state(crate::config::DirectKeysRouting::Auto);
+    let mut surface = surface();
+    surface.panes[0].alternate_screen_active = true;
+    state.set_pane_surface(surface);
+
+    let outcome = state.handle_input_bytes(b"\x1b[116;5u");
+
+    assert!(!state.sidebar_collapsed, "the pane owns the direct chord");
+    assert!(routed_to_pane(&outcome));
+}
+
+#[test]
+fn auto_direct_keys_stay_with_herdr_outside_the_alternate_screen() {
+    let mut state = direct_keys_state(crate::config::DirectKeysRouting::Auto);
+
+    let outcome = state.handle_input_bytes(b"\x1b[116;5u");
+
+    assert!(state.sidebar_collapsed);
+    assert!(!routed_to_pane(&outcome));
+}
+
+#[test]
+fn prefix_still_works_while_a_pane_owns_direct_keys() {
+    let mut state = direct_keys_state(crate::config::DirectKeysRouting::Pane);
+
+    // The prefix is not a direct binding, so it must still enter prefix mode.
+    let _ = state.handle_input_bytes(b"\x1b[98;5u");
+    assert_eq!(state.mode, ClientShellMode::Prefix);
+    assert!(state.handle_input_bytes(b"\x1b[113u").detach, "prefix+q");
+}

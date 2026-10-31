@@ -80,6 +80,20 @@ pub enum ToastHerdrPosition {
     BottomRight,
 }
 
+/// Who receives prefix-free (direct) keybindings: "herdr" keeps them, "auto"
+/// forwards them while the pane application is on the alternate screen, and
+/// "pane" always forwards them.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema, Default,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DirectKeysRouting {
+    #[default]
+    Herdr,
+    Auto,
+    Pane,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToastClipboardPosition {
@@ -337,6 +351,10 @@ pub struct KeysConfig {
     /// Prefix key(s) to enter prefix mode (e.g. "ctrl+b", "f12", "esc", or an
     /// array to accept several).
     pub prefix: BindingConfig,
+    /// Who receives prefix-free (direct) keybindings. Saved values are
+    /// "herdr", "auto", or "pane". "auto" forwards them to the pane while its
+    /// application uses the alternate screen. Default: "herdr".
+    pub direct_keys: DirectKeysRouting,
     /// Open keybinding help. Default: "prefix+?"
     pub help: BindingConfig,
     /// Open settings. Default: "prefix+s"
@@ -469,6 +487,8 @@ pub struct KeysConfig {
 pub(crate) struct KeysConfigOverlay {
     #[serde(skip_serializing_if = "Option::is_none")]
     prefix: Option<BindingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    direct_keys: Option<DirectKeysRouting>,
     /// Additional prefix keys published for cross-version compatibility.
     /// Older clients parse `prefix` as a single string and ignore this field;
     /// new clients merge it into the effective prefix list.
@@ -644,6 +664,7 @@ impl<'de> Deserialize<'de> for KeysConfig {
             };
         }
 
+        apply_field!(direct_keys);
         apply_field!(help);
         apply_field!(settings);
         apply_field!(new_workspace);
@@ -1121,6 +1142,7 @@ impl Default for KeysConfig {
     fn default() -> Self {
         Self {
             prefix: BindingConfig::one("ctrl+b"),
+            direct_keys: DirectKeysRouting::default(),
             help: BindingConfig::one("prefix+?"),
             settings: BindingConfig::one("prefix+s"),
             new_workspace: BindingConfig::one("prefix+shift+n"),
@@ -1444,6 +1466,22 @@ startup_per_agent_delay_ms = 0
         let config: Config = toml::from_str(toml).unwrap();
         assert!(!config.session.resume_agents_on_restore);
         assert_eq!(config.session.startup_per_agent_delay_ms, 0);
+    }
+
+    #[test]
+    fn direct_keys_routing_defaults_to_herdr_and_parses_every_value() {
+        assert_eq!(Config::default().keys.direct_keys, DirectKeysRouting::Herdr);
+
+        for (value, expected) in [
+            ("herdr", DirectKeysRouting::Herdr),
+            ("auto", DirectKeysRouting::Auto),
+            ("pane", DirectKeysRouting::Pane),
+        ] {
+            let toml = format!("[keys]\ndirect_keys = \"{value}\"\n");
+            let config: Config = toml::from_str(&toml).unwrap();
+            assert_eq!(config.keys.direct_keys, expected, "value {value}");
+            assert!(config.keys.key_field_is_user_configured("direct_keys"));
+        }
     }
 
     #[test]

@@ -488,6 +488,17 @@
           "description": "Prefix key(s) to enter prefix mode (e.g. \"ctrl+b\", \"f12\", \"esc\", or an array to accept several)."
         },
         {
+          "key": "keys.direct_keys",
+          "type": "enum",
+          "default": "\"herdr\"",
+          "description": "Who receives prefix-free (direct) keybindings. Saved values are \"herdr\", \"auto\", or \"pane\". \"auto\" forwards them to the pane while its application uses the alternate screen. Default: \"herdr\".",
+          "values": [
+            "herdr",
+            "auto",
+            "pane"
+          ]
+        },
+        {
           "key": "keys.help",
           "type": "keybinding",
           "default": "\"prefix+?\"",

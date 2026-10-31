@@ -143,6 +143,11 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # alt+..., cmd/super, and punctuation-with-modifiers may depend on your terminal/tmux setup.
 # prefix = "ctrl+b"
 
+# Who receives direct (prefix-free) bindings: "herdr" (default), "auto", or "pane".
+# "auto" hands them to the pane while its app is on the alternate screen, which is
+# how full-screen editors and pagers get their own ctrl+letter chords back.
+# direct_keys = "herdr"
+
 # Prefix-mode actions
 # help = "prefix+?"
 # settings = "prefix+s"

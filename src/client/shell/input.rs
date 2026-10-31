@@ -670,11 +670,13 @@ impl ClientShellState {
 
         match self.mode {
             ClientShellMode::Terminal => {
-                if let Some(binding) =
-                    crate::input::resolve_direct_binding(&self.config.keybinds.keybinds, key)
-                {
-                    self.record_binding(binding, outcome);
-                    return None;
+                if !self.direct_keys_go_to_pane() {
+                    if let Some(binding) =
+                        crate::input::resolve_direct_binding(&self.config.keybinds.keybinds, key)
+                    {
+                        self.record_binding(binding, outcome);
+                        return None;
+                    }
                 }
                 if self.config.keybinds.matches_prefix(key) {
                     self.mode = ClientShellMode::Prefix;
@@ -1089,6 +1091,28 @@ impl ClientShellState {
         self.snapshot
             .as_deref()
             .and_then(|snapshot| snapshot.focused_pane_id.clone())
+    }
+
+    /// Whether the focused pane owns the prefix-free (direct) keybindings instead
+    /// of Herdr, which `keys.direct_keys` decides.
+    pub(super) fn direct_keys_go_to_pane(&self) -> bool {
+        let Some(pane_id) = self.focused_pane_id() else {
+            return false;
+        };
+        match self.config.local_keys.direct_keys {
+            crate::config::DirectKeysRouting::Herdr => false,
+            crate::config::DirectKeysRouting::Pane => true,
+            crate::config::DirectKeysRouting::Auto => {
+                self.focused_pane_uses_alternate_screen(&pane_id)
+            }
+        }
+    }
+
+    fn focused_pane_uses_alternate_screen(&self, pane_id: &str) -> bool {
+        self.pane_surface
+            .as_ref()
+            .and_then(|surface| surface.panes.iter().find(|pane| pane.pane_id == pane_id))
+            .is_some_and(|pane| pane.alternate_screen_active)
     }
 
     pub(crate) fn clipboard_image_target(

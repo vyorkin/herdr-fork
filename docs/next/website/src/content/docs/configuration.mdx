@@ -174,6 +174,18 @@ Key strings accept plain keys, modifier combinations such as `ctrl+a`, `shift+n`
 
 If you have old custom keybindings and want the new defaults, run `herdr config reset-keys`. Herdr backs up `config.toml`, removes `[keys]` and `[[keys.command]]`, and uses built-in v2 defaults after restart or `herdr server reload-config`.
 
+**Direct bindings inside a pane.** A direct shortcut belongs to Herdr, so the pane's application never sees that chord. That matters when a direct chord is one the application needs itself, for example `ctrl+h` or `ctrl+l` in a full-screen editor. `keys.direct_keys` decides who receives direct bindings:
+
+```toml
+[keys]
+# "herdr" (default): Herdr keeps every direct binding.
+# "auto": a pane whose application is on the alternate screen receives them.
+# "pane": panes always receive them.
+direct_keys = "auto"
+```
+
+`auto` is the useful middle ground: full-screen editors and pagers such as Vim, Neovim, `less`, and `htop` switch to the alternate screen, so they get their own chords back, while shells keep sending direct bindings to Herdr. Panes that never leave the normal screen, such as a plain shell, keep Herdr's behavior. Pressing the prefix always reaches Herdr regardless of this setting.
+
 ## Indexed jumps
 
 Indexed keybindings use `1..9` in normal keybinding fields:
