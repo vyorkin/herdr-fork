@@ -1139,3 +1139,119 @@ fn prefix_still_works_while_a_pane_owns_direct_keys() {
     assert_eq!(state.mode, ClientShellMode::Prefix);
     assert!(state.handle_input_bytes(b"\x1b[113u").detach, "prefix+q");
 }
+
+fn direct_focus_state(direct_keys: crate::config::DirectKeysRouting) -> ClientShellState {
+    let mut config = Config::default();
+    config.keys.direct_keys = direct_keys;
+    config.keys.focus_pane_down = crate::config::BindingConfig::one("ctrl+j");
+    config.keys.focus_pane_right = crate::config::BindingConfig::one("ctrl+l");
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    state
+}
+
+fn mark_alternate_screen(state: &mut ClientShellState) {
+    let mut surface = state.pane_surface.clone().unwrap_or_else(surface);
+    surface.panes[0].alternate_screen_active = true;
+    state.set_pane_surface(surface);
+}
+
+fn add_agent_to_focused_pane(state: &mut ClientShellState) {
+    let mut snapshot = snapshot();
+    snapshot.agents.push(crate::protocol::ClientShellAgent {
+        pane_id: "pane_1".into(),
+        workspace_id: "ws_1".into(),
+        tab_id: "tab_1".into(),
+        name: Some("pi".into()),
+        display_agent: Some("pi".into()),
+        agent: Some("pi".into()),
+        title: None,
+        terminal_title: None,
+        terminal_title_stripped: None,
+        agent_status: crate::api::schema::AgentStatus::Idle,
+        state_change_seq: 0,
+        state_labels: Vec::new(),
+        tokens: Vec::new(),
+        focused: true,
+    });
+    state.set_snapshot(Box::new(snapshot));
+}
+
+fn add_pane_below(state: &mut ClientShellState) {
+    let mut surface = surface();
+    surface.panes[0].rect.height = 1;
+    surface.panes[0].inner_rect.height = 1;
+    let mut below = surface.panes[0].clone();
+    below.pane_id = "pane_2".into();
+    below.focused = false;
+    below.rect.y = 1;
+    below.inner_rect.y = 1;
+    surface.panes.push(below);
+    state.set_pane_surface(surface);
+
+    let mut snapshot = snapshot();
+    let mut below = snapshot.panes[0].clone();
+    below.pane_id = "pane_2".into();
+    below.focused = false;
+    snapshot.panes.push(below);
+    state.set_snapshot(Box::new(snapshot));
+}
+
+#[test]
+fn auto_keeps_direct_focus_chords_in_a_pane_that_runs_an_agent() {
+    // A full-screen agent prompt uses ctrl+j for a newline, so `auto` must not
+    // hand pane navigation to it.
+    let mut state = direct_focus_state(crate::config::DirectKeysRouting::Auto);
+    add_pane_below(&mut state);
+    mark_alternate_screen(&mut state);
+    add_agent_to_focused_pane(&mut state);
+
+    let outcome = state.handle_input_bytes(b"\x1b[106;5u");
+
+    assert!(!routed_to_pane(&outcome), "herdr keeps ctrl+j");
+    assert!(
+        outcome
+            .actions
+            .iter()
+            .any(|action| matches!(action, ClientShellAction::Endpoint { .. })),
+        "ctrl+j must ask the server to focus the pane below"
+    );
+}
+
+#[test]
+fn auto_still_hands_direct_focus_chords_to_an_editor() {
+    let mut state = direct_focus_state(crate::config::DirectKeysRouting::Auto);
+    add_pane_below(&mut state);
+    mark_alternate_screen(&mut state);
+
+    let outcome = state.handle_input_bytes(b"\x1b[106;5u");
+
+    assert!(routed_to_pane(&outcome), "an editor keeps ctrl+j");
+}
+
+#[test]
+fn a_direct_focus_chord_without_a_neighbour_reaches_the_pane() {
+    // One pane, nothing to the right: ctrl+l must clear the screen instead of
+    // being swallowed by Herdr.
+    let mut state = direct_focus_state(crate::config::DirectKeysRouting::Herdr);
+
+    let outcome = state.handle_input_bytes(b"\x1b[108;5u");
+
+    assert!(routed_to_pane(&outcome));
+    assert!(outcome.actions.is_empty());
+}
+
+#[test]
+fn a_direct_focus_chord_with_a_neighbour_stays_with_herdr() {
+    let mut state = direct_focus_state(crate::config::DirectKeysRouting::Herdr);
+    add_pane_below(&mut state);
+
+    let outcome = state.handle_input_bytes(b"\x1b[106;5u");
+
+    assert!(!routed_to_pane(&outcome));
+    assert!(outcome
+        .actions
+        .iter()
+        .any(|action| matches!(action, ClientShellAction::Endpoint { .. })));
+}

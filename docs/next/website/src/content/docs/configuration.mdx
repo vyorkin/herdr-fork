@@ -184,7 +184,9 @@ If you have old custom keybindings and want the new defaults, run `herdr config 
 direct_keys = "auto"
 ```
 
-`auto` is the useful middle ground: full-screen editors and pagers such as Vim, Neovim, `less`, and `htop` switch to the alternate screen, so they get their own chords back, while shells keep sending direct bindings to Herdr. Panes that never leave the normal screen, such as a plain shell, keep Herdr's behavior. Pressing the prefix always reaches Herdr regardless of this setting.
+`auto` is the useful middle ground: full-screen editors and pagers such as Vim, Neovim, `less`, and `htop` switch to the alternate screen, so they get their own chords back, while shells keep sending direct bindings to Herdr. Panes that never leave the normal screen, such as a plain shell, keep Herdr's behavior. A pane that runs a detected coding agent is excluded even when it is on the alternate screen, because those prompts use `ctrl+j` and `ctrl+l` themselves. Pressing the prefix always reaches Herdr regardless of this setting.
+
+A direct focus binding with no pane in its direction has nothing to do, so that key goes to the pane instead of disappearing: `ctrl+l` clears the screen in a pane with no neighbour to the right, and `ctrl+j` inserts a newline in the bottom pane.
 
 One pane can override the config value:
 

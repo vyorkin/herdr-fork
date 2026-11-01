@@ -674,8 +674,10 @@ impl ClientShellState {
                     if let Some(binding) =
                         crate::input::resolve_direct_binding(&self.config.keybinds.keybinds, key)
                     {
-                        self.record_binding(binding, outcome);
-                        return None;
+                        if !self.direct_binding_has_no_target(&binding) {
+                            self.record_binding(binding, outcome);
+                            return None;
+                        }
                     }
                 }
                 if self.config.keybinds.matches_prefix(key) {
@@ -1109,10 +1111,68 @@ impl ClientShellState {
         match routing {
             crate::config::DirectKeysRouting::Herdr => false,
             crate::config::DirectKeysRouting::Pane => true,
+            // `auto` exists for editors and pagers, which take over the whole
+            // screen and expect their own ctrl+letter chords. A pane that runs a
+            // detected agent is a full-screen app too, but its prompt is built
+            // from those same chords (ctrl+j is a newline there), so Herdr keeps
+            // pane navigation instead.
             crate::config::DirectKeysRouting::Auto => {
                 self.focused_pane_uses_alternate_screen(&pane_id)
+                    && !self.focused_pane_has_agent(&pane_id)
             }
         }
+    }
+
+    fn focused_pane_has_agent(&self, pane_id: &str) -> bool {
+        self.snapshot.as_deref().is_some_and(|snapshot| {
+            snapshot
+                .agents
+                .iter()
+                .any(|agent| agent.pane_id == pane_id && agent.agent.is_some())
+        })
+    }
+
+    /// A direct focus binding with no pane in its direction has nothing to act
+    /// on, so the chord belongs to the pane instead of disappearing: ctrl+l
+    /// clears the screen in a pane with no neighbour to the right.
+    fn direct_binding_has_no_target(&self, binding: &crate::input::KeybindMatch) -> bool {
+        let crate::input::KeybindMatch::Action(action) = binding else {
+            return false;
+        };
+        let direction = match action {
+            crate::input::KeybindAction::FocusPaneLeft => crate::api::schema::PaneDirection::Left,
+            crate::input::KeybindAction::FocusPaneRight => crate::api::schema::PaneDirection::Right,
+            crate::input::KeybindAction::FocusPaneUp => crate::api::schema::PaneDirection::Up,
+            crate::input::KeybindAction::FocusPaneDown => crate::api::schema::PaneDirection::Down,
+            _ => return false,
+        };
+        let Some(surface) = self.pane_surface.as_ref() else {
+            return false;
+        };
+        let Some(focused) = surface.panes.iter().find(|pane| pane.focused) else {
+            return false;
+        };
+        let has_neighbor = surface.panes.iter().any(|other| {
+            if other.pane_id == focused.pane_id {
+                return false;
+            }
+            let (focus, other) = (focused.rect, other.rect);
+            match direction {
+                crate::api::schema::PaneDirection::Left => {
+                    other.x + other.width <= focus.x && spans_overlap_y(focus, other)
+                }
+                crate::api::schema::PaneDirection::Right => {
+                    other.x >= focus.x + focus.width && spans_overlap_y(focus, other)
+                }
+                crate::api::schema::PaneDirection::Up => {
+                    other.y + other.height <= focus.y && spans_overlap_x(focus, other)
+                }
+                crate::api::schema::PaneDirection::Down => {
+                    other.y >= focus.y + focus.height && spans_overlap_x(focus, other)
+                }
+            }
+        });
+        !has_neighbor
     }
 
     fn focused_pane_uses_alternate_screen(&self, pane_id: &str) -> bool {
@@ -1218,4 +1278,20 @@ impl ClientShellState {
             super::push_target_event(ClientInputTarget::Pane(pane_id), event, outcome);
         }
     }
+}
+
+/// Two side-by-side panes are neighbours only when their rows overlap.
+fn spans_overlap_y(
+    left: crate::protocol::SurfaceRect,
+    right: crate::protocol::SurfaceRect,
+) -> bool {
+    left.y < right.y + right.height && right.y < left.y + left.height
+}
+
+/// Two stacked panes are neighbours only when their columns overlap.
+fn spans_overlap_x(
+    left: crate::protocol::SurfaceRect,
+    right: crate::protocol::SurfaceRect,
+) -> bool {
+    left.x < right.x + right.width && right.x < left.x + left.width
 }
